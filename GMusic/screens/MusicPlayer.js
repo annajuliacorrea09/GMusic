@@ -1,20 +1,73 @@
-import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import React, {useState} from 'react'
+import { FlatList,Image,StyleSheet,Text,useWindowDimensions,View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import{songs} from '../model/data';
 import colors from '../theme/colors';
 
 export default function MusicPlayer() {
+  const {width} = useWindowDimensions();
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const currentSong = songs[selectedIndex];
+  const artworkSize = Math.min(width - 40,380);
+
+  function handleMomentumEnd(event){
+    const offset = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offset / width);
+    setSelectedIndex(index);
+  }
+   function renderArtwork({ item }) {
+    return (
+      <view style={[styles.artworkPage, { width}]}>
+        <image
+        source={item.artwork}
+        style={[styles.artwork,{width: artworkSize,height: artworkSize},
+          
+        ]}
+        
+        />
+      </view>
+    )
+   }
   return (
-    <SafeAreaView style={styles.conteiner}>
-      <View style={styles.content}></View>
-      <text style={styles.eyebrow}>TOCANDO AGORA</text>
-      <text style={styles.title}>GMusic</text>
-      <text style={styles.description}>
-        Nosso player começa aqui
-      </text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.eyebrow}>TOCANDO AGORA</Text>
+        <Text style={styles.title}>GMusic</Text>
+        <Text style={styles.description}>
+          Nosso player começa aqui
+        </Text>
+      </View>
     </SafeAreaView>
   )
 }
 
-const styles = StyleSheet.create({})
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  eyebrow: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.8
+  },
+  title: {
+    marginTop: 8,
+    color: colors.text,
+    fontSize: 32,
+    fontWeight: 800,
+  },
+  description: {
+    marginTop: 10,
+    color: colors.textSecondary,
+  }
+})
