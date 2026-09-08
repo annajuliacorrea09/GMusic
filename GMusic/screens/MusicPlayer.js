@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, } from 'react'
+import React, { useEffect, useMemo, useRef, useState, } from 'react'
 import Ionicons from  '@expo/vector-icons/Ionicons';
 import{
  setAudioModeAsync,
@@ -21,8 +21,9 @@ import colors from '../theme/colors';
 const audioSources = songs.map((song) => song.url);
 
 export default function MusicPlayer() {
-  const { width } = useWindowDimensions();
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const { height, width } = useWindowDimensions();
+  const listRef = useRef (null);
+
 
   const playlistOptions = useMemo(
     () => ({
@@ -35,8 +36,23 @@ export default function MusicPlayer() {
   const playlist = useAudioPlaylist(playlistOptions);
   const status = useAudioPlayerStatus(playlist);
 
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [favoriteIds, setFavoriteIds] = useState (() => new Set());
+  const [repeatOne, setRepeatOne] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
+
+
   const currentSong = songs[selectedIndex];
+  const isFavorite = favoriteIds.has(currentSong.id);
+  const iscompact = height < 700;
+  const contentWidth = Math.min(Math.max(width - 40, 240), 460);
   const artworkSize = Math.min(width-40, 380);
+      contentWidth,
+      Math.max(iscompact ? 190: 240,)
+
+
 
   useEffect(() => {
     setAudioModeAsync({
@@ -51,6 +67,10 @@ export default function MusicPlayer() {
       setSelectedIndex(status.currentIndex);
     }
   }, [status.currentIndex]);
+
+  useEffect(() => {
+    playlist.loop = repeatOne ? 'single' : 'nome';
+  }, [playlist, repeatOne]);
 
   function selectSong(index){
     if(index < 0 || index >= songs.length || index === selectedIndex){
@@ -79,7 +99,7 @@ export default function MusicPlayer() {
   function handleMomentumEnd(event) {
     const offset = event.nativeEvent.contentOffset.x;
     const index = Math.round(offset / width);
-    setSelectedIndex(index);
+    SelectSong(index);
   }
 
   function renderArtwork({ item }) {
