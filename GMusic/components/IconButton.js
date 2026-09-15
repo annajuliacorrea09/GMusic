@@ -66,9 +66,14 @@ export default function IconButton({
         ) : (
             <Ionicons name={icon} size={iconSize} color={iconColor} />
         )}
-
     </Pressable>
   )
 }
 
-const styles = StyleSheet.create({})
+const styles = StyleSheet.create({
+    button: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+    }
+})
