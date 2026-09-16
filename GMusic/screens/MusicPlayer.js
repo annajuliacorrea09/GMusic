@@ -1,13 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, } from 'react'
-import Ionicons from  '@expo/vector-icons/Ionicons';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Ionicons from '@expo/vector-icons/Ionicons';
 import Slider from '@react-native-community/slider';
 import { LinearGradient } from 'expo-linear-gradient'
 import {
- setAudioModeAsync,
- useAudioPlaylist,
- useAudioPlaylistStatus,
-} from 'react-native'
-
+  setAudioModeAsync,
+  useAudioPlaylist,
+  useAudioPlaylistStatus,
+ } from 'expo-audio';
 import {
   FlatList,
   Image,
@@ -30,40 +29,39 @@ const audioSources = songs.map((song) => song.url);
 
 export default function MusicPlayer() {
   const { height, width } = useWindowDimensions();
-  const listRef = useRef (null);
-
+  const listRef = useRef(null);
 
   const playlistOptions = useMemo(
     () => ({
       sources: audioSources,
-      loop: 'nome',
+      loop: 'none',
       updateInterval: 250,
     })
   );
 
   const playlist = useAudioPlaylist(playlistOptions);
-  const status = useAudioPlayerStatus(playlist);
+  const status = useAudioPlaylistStatus(playlist);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [favoriteIds, setFavoriteIds] = useState (() => new Set());
+  const [favoriteIds, setFavoriteIds] = useState(() => new Set());
   const [repeatOne, setRepeatOne] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPosition, setSeekPosition] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
 
-
   const currentSong = songs[selectedIndex];
   const isFavorite = favoriteIds.has(currentSong.id);
-  const iscompact = height < 700;
+  const isCompact = height < 700;
   const contentWidth = Math.min(Math.max(width - 40, 240), 460);
-  const artworkSize = Math.min(width-40, 380);
-      contentWidth,
-      Math.max(iscompact ? 190: 240, height * (iscompact ? 0.34 : 0.4)), 420;
-
-      const duration = Number.isFinite(status.duration) ? status.duration : 0;
-      const currentTime = Number.isFinite(status.currentTime) ? status.currentTime : 0;
-      const displayPosition = isSeeking ? seekPosition : currentTime;
-      const playerUnavaible = !status.isLoaded || status.isBuffering;
+  const artworkSize = Math.min(
+    contentWidth,
+    Math.max(isCompact ? 190: 240, height * (isCompact ? 0.34 : 0.4)),
+      420
+  );
+  const duration = Number.isFinite(status.duration) ? status.duration : 0;
+  const currentTime = Number.isFinite(status.currentTime) ? status.currentTime : 0;
+  const displayPosition = isSeeking ? seekPosition : currentTime;
+  const playerUnavailable = !status.isLoaded || status.isBuffering;
 
   useEffect(() => {
     setAudioModeAsync({
@@ -71,61 +69,104 @@ export default function MusicPlayer() {
       shouldPlayInBackground: false,
       interruptionMode: 'doNotMix',
     }).catch(() => {
-      setErrorMessage
-    }
+      setErrorMessage('Não foi possível configurar a reprodução de áudio.');
+    })
   }, []);
-
- useEffect(() => {
-    playlist.loop = repeatOne ? 'single' : 'nome';
+  
+  useEffect(() => {
+    playlist.loop = repeatOne ? 'single' : 'none';
   }, [playlist, repeatOne]);
 
   useEffect(() => {
-    if(Number.isInteger(status.currentIndex)){
+    if (
+      Number.isInteger(status.currentIndex) &&
       status.currentIndex >= 0 &&
       status.currentIndex < songs.length
-   ) {
-    setSelectedIndex(status.currentIndex);
-   }
-  },  [status.currentIndex]);
+    ) {
+      setSelectedIndex(status.currentIndex);
+    }
+  }, [status.currentIndex]);
 
   useEffect(() => {
-    listRef.current?,scrollToIndex({
+    listRef.current?.scrollToIndex({
       index: selectedIndex,
-      animater: true,
+      animated: true,
     });
   }, [selectedIndex, width]);
 
- 
-  function selectSong(index){
-    if(index < 0 || index >= songs.length || index === selectedIndex){
+  const reportPlaybackError = useCallback(() => {
+    setErrorMessage('Não foi possível executar esta ação no player.');
+  },[]);
+
+  const selectSong = useCallback((index) => {
+    if (index < 0 || index >= songs.length || index === selectedIndex) {
       return;
     }
 
-    const shouldResume = status.playing;
+    try{
+       const shouldResume = status.playing;
     setSelectedIndex(index);
     playlist.skipTo(index);
 
-    if(shouldResume) {
+    if (shouldResume) {
       playlist.play;
     }
+  } catch {
+    reportPlaybackError();
   }
 
-   function handlePlayPause() {
-    if (status.playing){
+  }, [playlist, reportPlaybackError, selectedIndex, status.playing])
+
+  
+
+  const handlePlayPause = useCallback(() => {
+    try{
+       if (status.playing) {
       playlist.pause();
     } else {
       playlist.play();
     }
-   }
+  } catch {
+    reportPlaybackError();
+  }
+  }, [playlist, reportPlaybackError, status.playing])
+    
 
-
-
-  function handleMomentumEnd(event) {
+  const handleMomentumEnd = useCallback((event) => {
     const offset = event.nativeEvent.contentOffset.x;
     const index = Math.round(offset / width);
-    SelectSong(index);
-  }
+    selectSong(index);
+  },[selectSong, width])
 
+  const handleNext = useCallback(() => {
+      const nextIndex = (selectedIndex = 1) % songs.length;
+      selectSong(nextIndex);
+  }, [selectSong, selectedIndex]);
+
+  const handlePrevious = useCallback(async () => {
+    try{
+      if(currentTime > 3) {
+        await playlist.seekTo(0);
+        return;
+      }
+      const previousIndex = (selectedIndex - 1 + songs.length) % songs.length;
+      selectSong(previousIndex);
+    } catch {
+      reportPlaybackError();
+    }
+  }, [currentTime, playlist, reportPlaybackError, selectSong,selectedIndex]);
+
+
+  const handleSeekComplete = useCallback(async (value) => {
+    try{
+      await playlist.seekTo(value);
+    } catch {
+      reportPlaybackError();
+    } finally {
+      setIsSeeking(false);
+    }
+  }, [playlist, reportPlaybackError])
+  
   function renderArtwork({ item }) {
     return (
       <View style={[styles.artworkPage, { width }]}>
@@ -164,17 +205,17 @@ export default function MusicPlayer() {
       </View>
 
       <Pressable
-       disabled={!status.isLoaded}
-       onPress={handlePlayPause}
-       style={styles.playButton}
-      > 
-      <Ionicons
-        name={status.playing ? 'pause' : 'play'}
-        size={38}
-        color={colors.background}
-      />
+        disabled={!status.isLoaded}
+        onPress={handlePlayPause}
+        style={styles.playButton}
+      >
+        <Ionicons 
+          name={status.playing ? 'pause' : 'play'}
+          size={38}
+          color={colors.background}
+        />
       </Pressable>
-    
+
     </SafeAreaView>
   )
 }
@@ -182,7 +223,9 @@ export default function MusicPlayer() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: 'center',
     backgroundColor: colors.background,
+    paddingBottom: 28
   },
   header: {
     height: 70,
@@ -241,7 +284,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
   },
-  playButton:{
+  playButton: {
     width: 78,
     height: 78,
     borderRadius: 39,
